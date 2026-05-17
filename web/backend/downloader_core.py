@@ -17,6 +17,18 @@ if _PROJECT_ROOT not in sys.path:
 from downloader import validate_format, _aria2c_available  # noqa: E402
 
 
+def _get_cookies_path() -> str | None:
+    """Return path to cookies file from env var, or None."""
+    path = os.environ.get("COOKIES_FILE") or ""
+    if path and os.path.exists(path):
+        return path
+    # Fallback: look for ytcookies.json in the current directory
+    fallback = os.path.join(os.getcwd(), "ytcookies.json")
+    if os.path.exists(fallback):
+        return fallback
+    return None
+
+
 def download_to_path(url: str, fmt: str, output_dir: str) -> str:
     """Download media from *url* in format *fmt* into *output_dir*.
 
@@ -62,6 +74,11 @@ def download_to_path(url: str, fmt: str, output_dir: str) -> str:
                 }
             ],
         }
+
+    # Use cookies file if available (for YouTube authentication)
+    cookies_path = _get_cookies_path()
+    if cookies_path:
+        ydl_opts["cookiefile"] = cookies_path
 
     if _aria2c_available():
         ydl_opts["external_downloader"] = "aria2c"

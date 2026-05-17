@@ -16,6 +16,8 @@ services:
     envVars:
       - key: ALLOWED_ORIGINS
         value: "*"
+      - key: COOKIES_FILE
+        value: ytcookies.json
       - key: PYTHON_VERSION
         value: 3.11.11
 
