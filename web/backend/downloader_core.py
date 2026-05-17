@@ -129,6 +129,9 @@ def download_to_path(url: str, fmt: str, output_dir: str) -> str:
     if cookies_path:
         ydl_opts["cookiefile"] = cookies_path
 
+    # Use Android/MWeb player clients to bypass bot detection on servers
+    ydl_opts["extractor_args"] = {"youtube": {"player_client": ["android", "mweb"]}}
+
     if _aria2c_available():
         ydl_opts["external_downloader"] = "aria2c"
         ydl_opts["external_downloader_args"] = [
