@@ -4,6 +4,7 @@ downloader_core.py — headless download logic for the web backend.
 Reuses helpers from the project-root downloader.py without calling sys.exit().
 """
 
+import json
 import logging
 import os
 import sys
@@ -19,6 +20,72 @@ if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
 from downloader import validate_format, _aria2c_available  # noqa: E402
+
+
+_netscp_path: str | None = None  # cache the converted cookie path
+
+
+def _json_to_netscape(json_path: str) -> str:
+    """Convert a JSON cookies file to Netscape format and return the new path.
+
+    yt-dlp requires the legacy Netscape cookie format, not JSON.
+    """
+    with open(json_path, "r") as f:
+        cookies = json.load(f)
+
+    lines = [
+        "# Netscape HTTP Cookie File",
+        "# https://curl.se/docs/http-cookies.html",
+        "# This file was auto-converted from JSON by the downloader",
+    ]
+
+    for c in cookies:
+        domain = c.get("domain", "")
+        host_only = c.get("hostOnly", False)
+        flag = "FALSE" if host_only else "TRUE"
+        path = c.get("path", "/")
+        secure = "TRUE" if c.get("secure", False) else "FALSE"
+        expiry = int(c.get("expirationDate", 0))
+        name = c.get("name", "")
+        value = c.get("value", "")
+        lines.append(f"{domain}\t{flag}\t{path}\t{secure}\t{expiry}\t{name}\t{value}")
+
+    out_path = json_path + ".txt"
+    with open(out_path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+    return out_path
+
+
+def _get_cookies_path() -> str | None:
+    """Return path to a Netscape-format cookies file, or None."""
+    global _netscp_path
+    if _netscp_path:
+        return _netscp_path
+
+    # 1. Check COOKIES_FILE env var (set on Render dashboard)
+    env_path = os.environ.get("COOKIES_FILE") or ""
+    if env_path and os.path.exists(env_path):
+        if env_path.endswith(".json"):
+            _netscp_path = _json_to_netscape(env_path)
+            return _netscp_path
+        _netscp_path = env_path
+        return env_path
+
+    # 2. Look for cookies.txt next to this file
+    local_path = os.path.join(os.path.dirname(__file__), "cookies.txt")
+    if os.path.exists(local_path):
+        _netscp_path = local_path
+        return local_path
+
+    # 3. Look for ytcookies.json next to this file (for backward compat)
+    json_fallback = os.path.join(os.path.dirname(__file__), "ytcookies.json")
+    if os.path.exists(json_fallback):
+        _netscp_path = _json_to_netscape(json_fallback)
+        return _netscp_path
+
+    logger.warning("No cookies file found. YouTube may require sign-in on datacenter IPs.")
+    return None
 
 
 def _get_ytdlp_version() -> str:
@@ -89,6 +156,14 @@ def download_to_path(url: str, fmt: str, output_dir: str) -> str:
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/120.0.6099.144 Mobile Safari/537.36"
     )
+
+    # Use cookies file to bypass YouTube's "Sign in to confirm" prompt.
+    # The file must be in Netscape format (NOT JSON).
+    # Set via COOKIES_FILE env var, or looks for cookies.txt in the backend dir.
+    cookies_path = _get_cookies_path()
+    if cookies_path:
+        ydl_opts["cookiefile"] = cookies_path
+        logger.info(f"Using cookies: {cookies_path}")
 
     # Enable verbose logging so we can see what yt-dlp is actually doing
     ydl_opts["verbose"] = True
