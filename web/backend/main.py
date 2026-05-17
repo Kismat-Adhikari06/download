@@ -88,11 +88,14 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS
+    # CORS — allow origins from env var; use "*" if set to wildcard for Railway
     allowed_origins_raw = os.environ.get(
         "ALLOWED_ORIGINS", "http://localhost:5173"
     )
-    allowed_origins = [o.strip() for o in allowed_origins_raw.split(",")]
+    if allowed_origins_raw.strip() == "*":
+        allowed_origins = ["*"]
+    else:
+        allowed_origins = [o.strip() for o in allowed_origins_raw.split(",")]
 
     app.add_middleware(
         CORSMiddleware,

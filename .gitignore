@@ -24,7 +24,8 @@ env/
 web/frontend/node_modules/
 web/frontend/dist/
 web/frontend/.env.local
-web/frontend/.env
+# .env.production is committed intentionally (no secrets, just the API URL)
+# Update VITE_API_BASE_URL in web/frontend/.env.production before deploying
 
 # OS
 .DS_Store
