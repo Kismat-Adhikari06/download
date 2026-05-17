@@ -2,10 +2,10 @@
 downloader_core.py — headless download logic for the web backend.
 
 Reuses helpers from the project-root downloader.py without calling sys.exit().
-"""
-
+"""import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 # Add the project root (two levels up from this file) to sys.path so that
@@ -17,15 +17,64 @@ if _PROJECT_ROOT not in sys.path:
 from downloader import validate_format, _aria2c_available  # noqa: E402
 
 
+_netscp_path: str | None = None  # cache the converted path
+
+
+def _json_to_netscape(json_path: str) -> str:
+    """Convert a JSON cookies file to Netscape format and return the new path.
+
+    yt-dlp requires the legacy Netscape cookie format, not JSON.
+    """
+    with open(json_path, "r") as f:
+        cookies = json.load(f)
+
+    lines = [
+        "# Netscape HTTP Cookie File",
+        "# https://curl.se/docs/http-cookies.html",
+        "# This file was auto-converted from JSON by the downloader",
+    ]
+
+    for c in cookies:
+        domain = c.get("domain", "")
+        # hostOnly: if True the cookie was set for a specific host;
+        # in Netscape format the leading "." indicates subdomain match.
+        host_only = c.get("hostOnly", False)
+        flag = "FALSE" if host_only else "TRUE"
+        path = c.get("path", "/")
+        secure = "TRUE" if c.get("secure", False) else "FALSE"
+        expiry = int(c.get("expirationDate", 0))
+        name = c.get("name", "")
+        value = c.get("value", "")
+        lines.append(f"{domain}\t{flag}\t{path}\t{secure}\t{expiry}\t{name}\t{value}")
+
+    out_path = json_path + ".txt"
+    with open(out_path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+    return out_path
+
+
 def _get_cookies_path() -> str | None:
-    """Return path to cookies file from env var, or None."""
+    """Return path to a Netscape-format cookies file, or None."""
+    global _netscp_path
+    if _netscp_path:
+        return _netscp_path
+
     path = os.environ.get("COOKIES_FILE") or ""
     if path and os.path.exists(path):
+        # If it's a .json file, convert to Netscape format
+        if path.endswith(".json"):
+            _netscp_path = _json_to_netscape(path)
+            return _netscp_path
+        _netscp_path = path
         return path
+
     # Fallback: look for ytcookies.json in the current directory
     fallback = os.path.join(os.getcwd(), "ytcookies.json")
     if os.path.exists(fallback):
-        return fallback
+        _netscp_path = _json_to_netscape(fallback)
+        return _netscp_path
+
     return None
 
 
