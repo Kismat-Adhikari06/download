@@ -108,6 +108,14 @@ def download(url: str, fmt: str) -> None:
             }],
         }
 
+    # Use a broader set of player clients to bypass YouTube bot detection on servers.
+    ydl_opts["extractor_args"] = {
+        "youtube": {
+            "player_client": ["android", "mweb", "ios", "tv"],
+            "skip": ["web"],
+        }
+    }
+
     # Use aria2c for faster downloads if available (splits into 16 connections)
     if _aria2c_available():
         ydl_opts["external_downloader"] = "aria2c"

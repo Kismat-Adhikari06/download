@@ -124,13 +124,20 @@ def download_to_path(url: str, fmt: str, output_dir: str) -> str:
             ],
         }
 
+    # Use a broader set of player clients to bypass YouTube bot detection on servers.
+    # Android, iOS, TV, and MWeb clients are less aggressively rate-limited than the
+    # default desktop-web client on datacenter IPs.
+    ydl_opts["extractor_args"] = {
+        "youtube": {
+            "player_client": ["android", "mweb", "ios", "tv"],
+            "skip": ["web"],
+        }
+    }
+
     # Use cookies file if available (for YouTube authentication)
     cookies_path = _get_cookies_path()
     if cookies_path:
         ydl_opts["cookiefile"] = cookies_path
-
-    # Use Android/MWeb player clients to bypass bot detection on servers
-    ydl_opts["extractor_args"] = {"youtube": {"player_client": ["android", "mweb"]}}
 
     if _aria2c_available():
         ydl_opts["external_downloader"] = "aria2c"
