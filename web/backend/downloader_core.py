@@ -5,7 +5,6 @@ Reuses helpers from the project-root downloader.py without calling sys.exit().
 """import json
 import os
 import sys
-import tempfile
 from pathlib import Path
 
 # Add the project root (two levels up from this file) to sys.path so that
