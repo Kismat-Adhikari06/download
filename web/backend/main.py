@@ -117,6 +117,13 @@ def create_app() -> FastAPI:
     # Routes
     # ------------------------------------------------------------------
 
+    @app.get("/health")
+    async def health_check():
+        """Railway health check endpoint."""
+        return {"status": "healthy"}
+
+
+
     @app.post("/download", response_model=DownloadResponse, status_code=200)
     async def post_download(body: DownloadRequest):
         """Accept a URL + format, run yt-dlp, return a temporary download link."""

@@ -30,6 +30,7 @@ web/frontend/.env.local
 # OS
 .DS_Store
 Thumbs.db
+nul
 
 # Kiro spec internals (optional — remove if you want to track specs)
 # .kiro/

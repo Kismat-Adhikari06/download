@@ -50,7 +50,7 @@ App available at **http://localhost:5173**
 
 | Variable          | Default                   | Description                                  |
 |-------------------|---------------------------|----------------------------------------------|
-| `ALLOWED_ORIGINS` | `http://localhost:5173`   | Comma-separated CORS origins. Use `*` to allow all (Railway). |
+| `ALLOWED_ORIGINS` | `http://localhost:5173`   | Comma-separated CORS origins. Use `*` to allow all (Render). |
 | `TEMP_DIR`        | system temp dir           | Where downloaded files are stored temporarily |
 
 **Frontend:**
@@ -61,39 +61,71 @@ App available at **http://localhost:5173**
 
 ---
 
-## Deploying to Railway
+## Deploying to Render
 
-Deploy the backend and frontend as **two separate Railway services** from the same repo.
+This project includes a [`render.yaml`](../render.yaml) Blueprint that defines both the backend web service and the frontend static site. You can deploy everything in one click:
 
-### Step 1 — Deploy the backend
+### One-click deploy (Blueprint)
 
-1. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub repo
-2. Select this repo
-3. Set **Root Directory** to `web/backend`
-4. Railway auto-detects Python + nixpacks (ffmpeg and aria2c are installed automatically)
-5. Add environment variable: `ALLOWED_ORIGINS` = `*` (update to your frontend URL after step 2)
-6. Deploy — note the public URL (e.g. `https://your-backend.up.railway.app`)
+1. Push this repo to GitHub
+2. Go to [dashboard.render.com](https://dashboard.render.com) → **New +** → **Blueprint**
+3. Connect your GitHub repo and select the `render.yaml` file
+4. Render will create both services automatically
+5. After deployment, grab the frontend URL and set it as the `VITE_API_BASE_URL` environment variable on the backend (see Step 3)
 
-### Step 2 — Deploy the frontend
+### Manual deployment
 
-1. In the same Railway project → Add Service → GitHub repo (same repo)
-2. Set **Root Directory** to `web/frontend`
-3. Add environment variable: `VITE_API_BASE_URL` = `https://your-backend.up.railway.app`
-4. Deploy
+#### Step 1 — Backend (Web Service)
 
-### Step 3 — Lock down CORS (optional but recommended)
+1. [dashboard.render.com](https://dashboard.render.com) → **New +** → **Web Service**
+2. Connect your GitHub repo
+3. **Name:** `universal-media-downloader-backend`
+4. **Root Directory:** `web/backend`
+5. **Runtime:** `Python 3`
+6. **Build Command:** `pip install -r requirements.txt`
+7. **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
+8. **Health Check Path:** `/health`
+9. Add environment variable: `ALLOWED_ORIGINS` = `*` (update after frontend is deployed)
+10. Select the **Free** plan and deploy
+
+> **System dependencies:** Render's Python environment includes `ffmpeg` by default. `aria2c` is optional but recommended for faster downloads.
+
+#### Step 2 — Frontend (Static Site)
+
+1. [dashboard.render.com](https://dashboard.render.com) → **New +** → **Static Site**
+2. Connect your GitHub repo
+3. **Name:** `universal-media-downloader-frontend`
+4. **Root Directory:** `web/frontend`
+5. **Build Command:** `npm install && npm run build`
+6. **Publish Directory:** `dist`
+7. Add environment variable: `VITE_API_BASE_URL` = `https://your-backend-url.onrender.com` (from Step 1)
+8. Click **Deploy**
+
+> Client-side routing is handled by the [`_redirects`](web/frontend/public/_redirects) file — all routes are rewritten to `index.html`.
+
+#### Step 3 — Lock down CORS (optional but recommended)
 
 Once the frontend is deployed and you have its URL:
-1. Go to the backend service → Variables
-2. Update `ALLOWED_ORIGINS` to your frontend URL (e.g. `https://your-frontend.up.railway.app`)
-3. Redeploy the backend
+1. Go to the backend Web Service → **Environment**
+2. Update `ALLOWED_ORIGINS` to `https://your-frontend.onrender.com`
+3. The backend will auto-restart with the new setting
 
-### Notes
+### Blueprint environment variables
 
-- `ffmpeg` and `aria2c` are installed automatically via `nixpacks.toml` — no manual setup needed
-- Temp files are stored on Railway's ephemeral filesystem — they survive for 1 hour or until downloaded
-- If the backend restarts mid-download, the download link will return 404 (acceptable for a free tier)
-- Audio downloads require `ffmpeg` — this is handled automatically on Railway
+The `render.yaml` has two variables you **must** configure in the dashboard after the initial deploy:
+
+| Service   | Variable            | Required value                          |
+|-----------|---------------------|-----------------------------------------|
+| Frontend  | `VITE_API_BASE_URL` | Your backend URL (e.g. `https://api.onrender.com`) |
+
+### Important notes
+
+- **Ephemeral filesystem:** Downloaded files are stored temporarily and deleted after serving or after 1 hour — this is normal for free-tier hosting
+- **Audio downloads** require `ffmpeg`, which is pre-installed on all Render services
+- **Large downloads** may time out on the free plan — consider upgrading for larger files
+- If a deploy fails, check the Render logs for missing system packages or dependency errors
+
+---
 
 ---
 

@@ -1,0 +1,45 @@
+# Render Blueprint — defines both the backend web service and frontend static site
+# https://render.com/docs/blueprint-spec
+
+services:
+  # ─── Backend: FastAPI web service ───────────────────────────────────
+  - type: web
+    name: universal-media-downloader-backend
+    runtime: python
+    repo: https://github.com/Kismat-Adhikari06/download.git
+    region: oregon
+    plan: free
+    rootDir: web/backend
+    buildCommand: apt-get update && apt-get install -y ffmpeg aria2 && pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: ALLOWED_ORIGINS
+        value: "*"
+      - key: PYTHON_VERSION
+        value: 3.11.11
+
+  # ─── Frontend: React static site ────────────────────────────────────
+  - type: static
+    name: universal-media-downloader-frontend
+    runtime: static
+    repo: https://github.com/Kismat-Adhikari06/download.git
+    region: oregon
+    rootDir: web/frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    pullRequestPreviewsEnabled: true
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false  # set this in the Render dashboard to your backend URL
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
