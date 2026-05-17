@@ -4,10 +4,13 @@ downloader_core.py — headless download logic for the web backend.
 Reuses helpers from the project-root downloader.py without calling sys.exit().
 """
 
-import json
+import logging
 import os
 import sys
 from pathlib import Path
+
+# Set up a logger for this module
+logger = logging.getLogger(__name__)
 
 # Add the project root (two levels up from this file) to sys.path so that
 # downloader.py can be imported regardless of the working directory.
@@ -18,65 +21,13 @@ if _PROJECT_ROOT not in sys.path:
 from downloader import validate_format, _aria2c_available  # noqa: E402
 
 
-_netscp_path: str | None = None  # cache the converted path
-
-
-def _json_to_netscape(json_path: str) -> str:
-    """Convert a JSON cookies file to Netscape format and return the new path.
-
-    yt-dlp requires the legacy Netscape cookie format, not JSON.
-    """
-    with open(json_path, "r") as f:
-        cookies = json.load(f)
-
-    lines = [
-        "# Netscape HTTP Cookie File",
-        "# https://curl.se/docs/http-cookies.html",
-        "# This file was auto-converted from JSON by the downloader",
-    ]
-
-    for c in cookies:
-        domain = c.get("domain", "")
-        # hostOnly: if True the cookie was set for a specific host;
-        # in Netscape format the leading "." indicates subdomain match.
-        host_only = c.get("hostOnly", False)
-        flag = "FALSE" if host_only else "TRUE"
-        path = c.get("path", "/")
-        secure = "TRUE" if c.get("secure", False) else "FALSE"
-        expiry = int(c.get("expirationDate", 0))
-        name = c.get("name", "")
-        value = c.get("value", "")
-        lines.append(f"{domain}\t{flag}\t{path}\t{secure}\t{expiry}\t{name}\t{value}")
-
-    out_path = json_path + ".txt"
-    with open(out_path, "w") as f:
-        f.write("\n".join(lines) + "\n")
-
-    return out_path
-
-
-def _get_cookies_path() -> str | None:
-    """Return path to a Netscape-format cookies file, or None."""
-    global _netscp_path
-    if _netscp_path:
-        return _netscp_path
-
-    path = os.environ.get("COOKIES_FILE") or ""
-    if path and os.path.exists(path):
-        # If it's a .json file, convert to Netscape format
-        if path.endswith(".json"):
-            _netscp_path = _json_to_netscape(path)
-            return _netscp_path
-        _netscp_path = path
-        return path
-
-    # Fallback: look for ytcookies.json in the current directory
-    fallback = os.path.join(os.getcwd(), "ytcookies.json")
-    if os.path.exists(fallback):
-        _netscp_path = _json_to_netscape(fallback)
-        return _netscp_path
-
-    return None
+def _get_ytdlp_version() -> str:
+    """Return the installed yt-dlp version string."""
+    try:
+        import yt_dlp
+        return yt_dlp.version.__version__
+    except Exception:
+        return "unknown"
 
 
 def download_to_path(url: str, fmt: str, output_dir: str) -> str:
@@ -124,21 +75,26 @@ def download_to_path(url: str, fmt: str, output_dir: str) -> str:
             ],
         }
 
-    # Use a broader set of player clients to bypass YouTube bot detection on servers.
-    # Android, iOS, TV, and MWeb clients are less aggressively rate-limited than the
-    # default desktop-web client on datacenter IPs.
+    # Try to bypass YouTube bot detection by using mobile/TV player clients.
+    # The default "web" client is most aggressively blocked on datacenter IPs.
     ydl_opts["extractor_args"] = {
         "youtube": {
             "player_client": ["android", "mweb", "ios", "tv"],
-            "skip": ["web"],
         }
     }
 
-    # Use cookies file if available (for YouTube authentication)
-    cookies_path = _get_cookies_path()
-    if cookies_path:
-        ydl_opts["cookiefile"] = cookies_path
+    # Use a mobile User-Agent to further avoid bot detection
+    ydl_opts["user_agent"] = (
+        "Mozilla/5.0 (Linux; Android 14; Pixel 7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.6099.144 Mobile Safari/537.36"
+    )
 
+    # Enable verbose logging so we can see what yt-dlp is actually doing
+    ydl_opts["verbose"] = True
+    ydl_opts["logger"] = logger
+
+    # Use aria2c for faster downloads if available
     if _aria2c_available():
         ydl_opts["external_downloader"] = "aria2c"
         ydl_opts["external_downloader_args"] = [
@@ -157,12 +113,23 @@ def download_to_path(url: str, fmt: str, output_dir: str) -> str:
 
     ydl_opts["progress_hooks"] = [_progress_hook]
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])  # raises DownloadError on failure
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])  # raises DownloadError on failure
+    except yt_dlp.utils.DownloadError as exc:
+        # Wrap the error with extra debug info
+        debug_info = (
+            f"\n[DEBUG] yt-dlp version: {_get_ytdlp_version()}"
+            f"\n[DEBUG] URL: {url}"
+            f"\n[DEBUG] Format: {fmt}"
+            f"\n[DEBUG] extrator_args: {ydl_opts.get('extractor_args', {})}"
+            f"\n[DEBUG] user_agent set: {'user_agent' in ydl_opts}"
+            f"\n[DEBUG] aria2c available: {_aria2c_available()}"
+        )
+        raise yt_dlp.utils.DownloadError(str(exc) + debug_info)
 
     # Prefer the path captured by the progress hook; fall back to scanning the dir.
     if downloaded_path:
-        # For audio, yt-dlp reports the pre-conversion filename; find the .mp3
         candidate = downloaded_path[-1]
         if fmt == "audio":
             mp3_path = Path(candidate).with_suffix(".mp3")

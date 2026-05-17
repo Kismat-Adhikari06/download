@@ -2,6 +2,7 @@
 main.py — FastAPI application for the Universal Media Downloader web UI.
 """
 
+import logging
 import os
 import tempfile
 import uuid
@@ -16,9 +17,12 @@ from pydantic import BaseModel, Field
 
 import yt_dlp.utils
 
-from downloader_core import download_to_path
+from downloader_core import download_to_path, _get_ytdlp_version
 from scheduler import start_scheduler, stop_scheduler
 from temp_store import JobRecord, TempStore
+
+# Configure logging so yt-dlp verbose output is visible
+logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
 
 # ---------------------------------------------------------------------------
 # Pydantic models
@@ -119,9 +123,11 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health_check():
-        """Railway health check endpoint."""
-        return {"status": "healthy"}
-
+        """Render health check endpoint."""
+        return {
+            "status": "healthy",
+            "ytdlp_version": _get_ytdlp_version(),
+        }
 
 
     @app.post("/download", response_model=DownloadResponse, status_code=200)
