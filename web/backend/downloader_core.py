@@ -2,7 +2,9 @@
 downloader_core.py — headless download logic for the web backend.
 
 Reuses helpers from the project-root downloader.py without calling sys.exit().
-"""import json
+"""
+
+import json
 import os
 import sys
 from pathlib import Path
