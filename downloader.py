@@ -93,7 +93,7 @@ def download(url: str, fmt: str) -> None:
 
     if fmt == "video":
         ydl_opts = {
-            "format": "bestvideo+bestaudio/best",
+            "format": "best",
             "outtmpl": build_output_template(),
             "merge_output_format": "mp4",
         }

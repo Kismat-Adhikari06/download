@@ -108,9 +108,8 @@ def download_to_path(url: str, fmt: str, output_dir: str) -> str:
 
     if fmt == "video":
         ydl_opts: dict = {
-            "format": "bestvideo+bestaudio/best",
+            "format": "best",
             "outtmpl": outtmpl,
-            "merge_output_format": "mp4",
         }
     else:  # fmt == "audio"
         ydl_opts = {
