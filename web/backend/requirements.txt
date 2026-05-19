@@ -1,7 +1,0 @@
-fastapi==0.115.12
-uvicorn[standard]==0.34.0
-apscheduler==3.11.0
-yt-dlp==2026.3.17
-hypothesis==6.152.7
-pytest==8.3.5
-httpx==0.28.1

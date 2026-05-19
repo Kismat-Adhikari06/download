@@ -2,12 +2,11 @@
 
 from hypothesis import given, strategies as st
 
-from downloader import validate_url, validate_format, build_output_template
+from downloader import validate_url, parse_urls, validate_format, build_output_template
 
 
 # ---------------------------------------------------------------------------
 # Property 1: Non-empty URL strings are accepted; empty strings are rejected
-# Validates: Requirement 1.2
 # ---------------------------------------------------------------------------
 
 @given(st.text())
@@ -21,17 +20,29 @@ def test_validate_url_property(s: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Property 2: Only "video" and "audio" are valid format choices
-# Validates: Requirements 2.2, 2.3, 2.4
+# Property 2: parse_urls splits on whitespace and drops empties
+# ---------------------------------------------------------------------------
+
+@given(st.lists(st.text()))
+def test_parse_urls_pieces(pieces: list[str]) -> None:
+    """parse_urls should split joined pieces on whitespace and only keep non-empty strings."""
+    raw = " ".join(pieces)
+    result = parse_urls(raw)
+    expected = [p.strip() for p in raw.split() if p.strip()]
+    assert result == expected
+
+
+# ---------------------------------------------------------------------------
+# Property 3: Accepted format values
 # ---------------------------------------------------------------------------
 
 @given(st.text())
 def test_validate_format_property(s: str) -> None:
-    """For any string s, validate_format returns 'video'/'audio' only for exact matches,
-    and raises ValueError for everything else."""
-    if s == "video":
+    """validate_format accepts '1'/'video' -> 'video' and '2'/'audio' -> 'audio';
+    raises ValueError for everything else."""
+    if s in ("1", "video"):
         assert validate_format(s) == "video"
-    elif s == "audio":
+    elif s in ("2", "audio"):
         assert validate_format(s) == "audio"
     else:
         try:
@@ -42,8 +53,7 @@ def test_validate_format_property(s: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Property 3: Output path is always inside the downloads/ folder
-# Validates: Requirement 3.1
+# Property 4: Output path is always inside the downloads/ folder
 # ---------------------------------------------------------------------------
 
 @given(st.text(min_size=1))
