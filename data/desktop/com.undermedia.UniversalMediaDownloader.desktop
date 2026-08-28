@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Universal Media Downloader
+GenericName=Media Downloader
+Comment=Download video and audio from thousands of sites
+Exec=@PREFIX@/bin/universal-media-downloader
+Icon=com.undermedia.UniversalMediaDownloader
+Terminal=false
+Categories=AudioVideo;AudioVideoEditing;Utility;
+Keywords=download;video;audio;yt-dlp;youtube;mp4;mp3;
+StartupNotify=true
+StartupWMClass=com.undermedia.UniversalMediaDownloader
