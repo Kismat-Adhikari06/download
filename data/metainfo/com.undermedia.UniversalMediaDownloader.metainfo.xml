@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.undermedia.UniversalMediaDownloader</id>
+  <name>Universal Media Downloader</name>
+  <summary>Download video and audio from thousands of sites</summary>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>A lightweight, native GTK4 + libadwaita desktop app for downloading
+    media. Built on yt-dlp, it works with YouTube, Instagram, Twitter/X,
+    Reddit and thousands of other sites. Supports single videos, playlists,
+    video (MP4, up to 1080p) and audio (MP3).</p>
+  </description>
+  <launchable type="desktop-id">com.undermedia.UniversalMediaDownloader.desktop</launchable>
+  <icon type="stock">com.undermedia.UniversalMediaDownloader</icon>
+  <categories>
+    <category>AudioVideo</category>
+    <category>Utility</category>
+  </categories>
+  <keywords>
+    <keyword>download</keyword>
+    <keyword>video</keyword>
+    <keyword>audio</keyword>
+    <keyword>yt-dlp</keyword>
+    <keyword>youtube</keyword>
+  </keywords>
+  <url type="homepage">https://github.com/Kismat-Adhikari06/download</url>
+  <releases>
+    <release version="1.0" date="2026-08-28"/>
+  </releases>
+</component>
