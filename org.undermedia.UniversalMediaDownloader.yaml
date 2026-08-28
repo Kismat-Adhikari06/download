@@ -1,0 +1,37 @@
+id: com.undermedia.UniversalMediaDownloader
+runtime: org.gnome.Platform
+runtime-version: "46"
+sdk: org.gnome.Sdk
+command: universal-media-downloader
+finish-args:
+  - --share=network
+  - --socket=x11
+  - --socket=wayland
+  - --share=ipc
+  - --filesystem=home
+  - --device=all
+  - --talk-name=org.freedesktop.portal.*
+cleanup:
+  - /app/lib/python*/site-packages/yt_dlp/__pycache__
+modules:
+  - name: yt-dlp
+    buildsystem: python
+    sources:
+      - type: pip
+        packages:
+          - yt-dlp==2026.3.17
+
+  - name: undownload
+    buildsystem: simple
+    build-commands:
+      - install -dm755 /app/lib/undownload/app
+      - install -Dm644 app/__init__.py app/window.py app/core.py app/__main__.py /app/lib/undownload/app/
+      - cp -r data/icons/hicolor /app/share/icons/
+      - sed 's|^Exec=.*|Exec=universal-media-downloader|' < data/desktop/com.undermedia.UniversalMediaDownloader.desktop > /tmp/und.desktop
+      - install -Dm644 /tmp/und.desktop /app/share/applications/com.undermedia.UniversalMediaDownloader.desktop
+      - install -Dm644 data/metainfo/com.undermedia.UniversalMediaDownloader.metainfo.xml /app/share/metainfo/com.undermedia.UniversalMediaDownloader.metainfo.xml
+      - printf '#!/bin/sh\nexec /usr/bin/python3 /app/lib/undownload/app/__main__.py\n' > /app/bin/universal-media-downloader
+      - chmod +x /app/bin/universal-media-downloader
+    sources:
+      - type: dir
+        path: .
