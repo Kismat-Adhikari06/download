@@ -37,11 +37,6 @@ class DownloaderWindow(Adw.ApplicationWindow):
         header = Adw.HeaderBar()
         self.toolbar.add_top_bar(header)
 
-        self._prefs_button = Gtk.Button(icon_name="open-menu-symbolic")
-        self._prefs_button.set_tooltip_text("Preferences")
-        self._prefs_button.connect("clicked", self._on_prefs_clicked)
-        header.pack_end(self._prefs_button)
-
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
         content.set_margin_top(24)
         content.set_margin_bottom(24)
