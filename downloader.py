@@ -17,6 +17,8 @@ import shutil
 import sys
 from typing import Callable
 
+from yt_dlp.networking.impersonate import ImpersonateTarget
+
 
 # ---------------------------------------------------------------------------
 # Pure helper functions (no I/O, fully testable)
@@ -202,6 +204,11 @@ def download(url: str, fmt: str) -> bool:
         "no_warnings": True,
         "progress_hooks": [_make_progress_hook()],
     }
+
+    try:
+        ydl_opts['impersonate'] = ImpersonateTarget()
+    except Exception:
+        pass
 
     if fmt == "video":
         ydl_opts.update({
