@@ -220,6 +220,19 @@ def download(
     if cookies_browser:
         ydl_opts["cookiesfrombrowser"] = _cookies_tuple(cookies_browser)
 
+    # PornHub (and similar) is blocked via TLS fingerprinting — cookies alone
+    # aren't enough. The user's working terminal command uses
+    # --impersonate chrome-116:windows-10, so we do the same when curl_cffi
+    # is available. yt-dlp auto-detects curl_cffi, but explicitly setting the
+    # target guarantees it works even with "None" cookies.
+    if any(d in url.lower() for d in ["pornhub.com", "pornhub"]):
+        try:
+            from yt_dlp.networking.impersonate import ImpersonateTarget
+
+            ydl_opts["impersonate"] = ImpersonateTarget.from_str("chrome-116:windows-10")
+        except Exception:
+            pass
+
     # Use aria2c for faster downloads if available.
     if _aria2c_available():
         ydl_opts["external_downloader"] = "aria2c"
