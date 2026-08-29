@@ -53,6 +53,63 @@ def _aria2c_available() -> bool:
     return shutil.which("aria2c") is not None
 
 
+def _cookies_tuple(browser: str) -> tuple:
+    """Return a yt-dlp cookiesfrombrowser tuple, handling Snap installs.
+
+    For Brave (and other Chromium-based browsers) installed via Snap,
+    the cookies live under ~/snap/... instead of ~/.config. If the
+    default location is missing but a Snap location exists, return the
+    full profile path so yt-dlp can find the Cookies database — matching
+    what `yt-dlp --cookies-from-browser brave:\"/snap/.../Default\"` does.
+    """
+    import glob
+
+    b = browser.lower()
+    # Firefox uses a different storage; no Snap fix needed.
+    if b == "firefox":
+        return (b, None, None, None)
+
+    config_map = {
+        "brave": "BraveSoftware/Brave-Browser",
+        "chrome": "google-chrome",
+        "chromium": "chromium",
+        "edge": "microsoft-edge",
+        "opera": "opera",
+        "vivaldi": "vivaldi",
+    }
+    snap_map = {
+        "brave": "brave",
+        "chrome": "chromium",
+        "chromium": "chromium",
+        "edge": "microsoft-edge",
+    }
+
+    cfg = config_map.get(b)
+    if not cfg:
+        return (b, None, None, None)
+
+    # If default Cookies exists, the simple tuple works (e.g. apt install).
+    default_cookies = os.path.expanduser(f"~/.config/{cfg}/Default/Cookies")
+    if os.path.exists(default_cookies):
+        return (b, None, None, None)
+
+    # Try Snap locations.
+    snap_name = snap_map.get(b, b)
+    candidates = [
+        os.path.expanduser(f"~/snap/{snap_name}/current/.config/{cfg}/Default"),
+        os.path.expanduser(f"~/snap/{snap_name}/common/.config/{cfg}/Default"),
+    ]
+    candidates += glob.glob(os.path.expanduser(f"~/snap/{snap_name}/*/.config/{cfg}/Default"))
+
+    for cand in candidates:
+        if os.path.exists(os.path.join(cand, "Cookies")):
+            return (b, cand, None, None)
+
+    # No Cookies found anywhere — return default tuple so yt-dlp gives
+    # a clear "could not find ... Cookies database" error.
+    return (b, None, None, None)
+
+
 # ---------------------------------------------------------------------------
 # Download engine
 # ---------------------------------------------------------------------------
@@ -161,7 +218,7 @@ def download(
     }
 
     if cookies_browser:
-        ydl_opts["cookiesfrombrowser"] = (cookies_browser,)
+        ydl_opts["cookiesfrombrowser"] = _cookies_tuple(cookies_browser)
 
     # Use aria2c for faster downloads if available.
     if _aria2c_available():
@@ -279,7 +336,7 @@ def _download_image(url: str, img_fmt: str, output_dir: str, cookies_browser: Op
             },
         }
         if cookies_browser:
-            ydl_thumb_opts["cookiesfrombrowser"] = (cookies_browser,)
+            ydl_thumb_opts["cookiesfrombrowser"] = _cookies_tuple(cookies_browser)
         info = yt_dlp.YoutubeDL(ydl_thumb_opts).extract_info(url, download=False)
     except yt_dlp.utils.DownloadError as exc:
         return (None, f"Could not get media info: {exc}")

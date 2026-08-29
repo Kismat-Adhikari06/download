@@ -1,4 +1,5 @@
 # PyGObject (GTK4/libadwaita) comes from the system packages and is reused
 # via the venv's --system-site-packages flag — do NOT let pip rebuild it here.
 yt-dlp==2026.8.19
+curl_cffi>=0.12
 Pillow
